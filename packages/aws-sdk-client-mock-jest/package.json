@@ -36,6 +36,9 @@
   "module": "dist/es/index.js",
   "main": "dist/cjs/index.js",
   "types": "dist/types/index.d.ts",
+  "exports": {
+    "./vitest": {"import": "./dist/es/vitest.js", "types": "./dist/types/vitest.d.ts"}
+  },
   "files": [
     "dist"
   ],

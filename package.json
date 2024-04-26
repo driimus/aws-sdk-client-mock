@@ -37,7 +37,8 @@
     "ts-node": "10.9.1",
     "tsd": "0.27.0",
     "typescript": "4.9.5",
-    "verdaccio": "5.5.2"
+    "verdaccio": "5.5.2",
+    "vitest": "^1.5.0"
   },
   "lint-staged": {
     "*.ts": "yarn lint"
@@ -73,5 +74,13 @@
         "type": "json"
       }
     ]
+  },
+  "peerDependencies": {
+    "vitest": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   }
 }

@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-interface */
+import type { MetadataBearer } from '@smithy/types';
 import assert from 'assert';
-import type {MetadataBearer} from '@smithy/types';
-import {AwsCommand, AwsStub} from 'aws-sdk-client-mock';
-import type {SinonSpyCall} from 'sinon';
-import type {ExpectationResult, MatcherContext, MatcherFunction} from 'expect';
-import {expect} from 'expect';
+import { AwsCommand, AwsStub } from 'aws-sdk-client-mock';
+import type { ExpectationResult, MatcherContext, MatcherFunction, MatcherFunctionWithContext } from 'expect';
+import { expect } from 'expect';
+import type { SinonSpyCall } from 'sinon';
 
 interface AwsSdkJestMockBaseMatchers<R> extends Record<string, Function> {
     /**
@@ -206,10 +207,12 @@ type MessageFunctionParams<CheckData> = {
     notPrefix: string;
 };
 
+type AnyMatcherContext = MatcherContext | import('@vitest/expect').MatcherState;
+
 /**
  * Prettyprints command calls for message
  */
-const printCalls = (ctx: MatcherContext, calls: AnySpyCall[]): string[] =>
+const printCalls = <Ctx extends AnyMatcherContext>(ctx: Ctx, calls: AnySpyCall[]): string[] =>
     calls.length > 0
         ? [
             '',
@@ -222,8 +225,8 @@ const printCalls = (ctx: MatcherContext, calls: AnySpyCall[]): string[] =>
             )]
         : [];
 
-const processMatch = <CheckData = undefined>({ctx, mockClient, command, check, message}: {
-    ctx: MatcherContext;
+const processMatch = <Ctx extends AnyMatcherContext, CheckData = undefined>({ctx, mockClient, command, check, message}: {
+    ctx: Ctx;
     mockClient: unknown;
     command?: new () => AnyCommand;
     check: (params: { calls: AnySpyCall[]; commandCalls: AnySpyCall[] }) => {
@@ -270,12 +273,13 @@ const ensureNoOtherArgs = (args: unknown[]): void => {
     assert(args.length === 0, 'Too many matcher arguments');
 };
 
-const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherFunction<any[]> } = {
+
+export const baseMatchers = {
     /**
      * implementation of {@link AwsSdkJestMockMatchers.toHaveReceivedCommand} matcher
      */
     toHaveReceivedCommand(
-        this: MatcherContext,
+        this: AnyMatcherContext,
         mockClient: unknown,
         command: new () => AnyCommand,
         ...other: unknown[]
@@ -317,15 +321,15 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
     /**
      * implementation of {@link AwsSdkJestMockMatchers.toHaveReceivedCommandWith} matcher
      */
-    toHaveReceivedCommandWith(
-        this: MatcherContext,
+    toHaveReceivedCommandWith<T extends AnyMatcherContext>(
+        this: T,
         mockClient: unknown,
         command: new () => AnyCommand,
         input: Record<string, unknown>,
         ...other: unknown[]
     ) {
         ensureNoOtherArgs(other);
-        return processMatch<{ matchCount: number }>({
+        return processMatch<T, { matchCount: number }>({
             ctx: this,
             mockClient,
             command,
@@ -346,8 +350,8 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
     /**
      * implementation of {@link AwsSdkJestMockMatchers.toHaveReceivedNthCommandWith} matcher
      */
-    toHaveReceivedNthCommandWith(
-        this: MatcherContext,
+    toHaveReceivedNthCommandWith<T extends AnyMatcherContext>(
+        this: T,
         mockClient: unknown,
         call: number,
         command: new () => AnyCommand,
@@ -360,7 +364,7 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
             'Call number must be a number greater than 0',
         );
 
-        return processMatch<{ received: AnyCommand | undefined }>({
+        return processMatch<T, { received: AnyCommand | undefined }>({
             ctx: this,
             mockClient,
             command,
@@ -401,8 +405,8 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
     /**
      * implementation of {@link AwsSdkJestMockMatchers.toHaveReceivedNthSpecificCommandWith} matcher
      */
-    toHaveReceivedNthSpecificCommandWith(
-        this: MatcherContext,
+    toHaveReceivedNthSpecificCommandWith<T extends AnyMatcherContext>(
+        this: T,
         mockClient: unknown,
         call: number,
         command: new () => AnyCommand,
@@ -415,7 +419,7 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
             'Call number must be a number greater than 0',
         );
 
-        return processMatch<{ received: AnyCommand | undefined }>({
+        return processMatch<T, { received: AnyCommand | undefined }>({
             ctx: this,
             mockClient,
             command,
@@ -436,11 +440,14 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
                     data: {received},
                 };
             },
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
             message: ({cmd, client, data, notPrefix}) => [
                 `Expected ${client} to ${notPrefix}receive ${call}. ${cmd} with ${this.utils.printExpected(input)}`,
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 ...(data.received
                     ? [
                         `${client} received ${this.utils.printReceived(data.received.constructor.name)} with input:`,
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
                         this.utils.printDiffOrStringify(
                             input,
                             data.received.input,
@@ -475,7 +482,7 @@ const baseMatchers: { [P in keyof AwsSdkJestMockBaseMatchers<unknown>]: MatcherF
 };
 
 /* typing ensures keys matching */
-const aliasMatchers: { [P in keyof AwsSdkJestMockAliasMatchers<unknown>]: MatcherFunction<any[]> } = {
+const aliasMatchers: Matchers<MatcherContext> = {
     toReceiveCommandTimes: baseMatchers.toHaveReceivedCommandTimes,
     toReceiveCommand: baseMatchers.toHaveReceivedCommand,
     toReceiveCommandWith: baseMatchers.toHaveReceivedCommandWith,
@@ -483,8 +490,10 @@ const aliasMatchers: { [P in keyof AwsSdkJestMockAliasMatchers<unknown>]: Matche
     toReceiveNthSpecificCommandWith: baseMatchers.toHaveReceivedNthSpecificCommandWith,
     toReceiveAnyCommand: baseMatchers.toHaveReceivedAnyCommand,
 };
+// import type { ExpectationResult } from 'expect';
+type Matchers<Ctx> = { [P in keyof AwsSdkJestMockAliasMatchers<unknown>]: (this: Ctx, received: any, expected: any, options?: any)=> ExpectationResult; }
 
-// Skip registration if jest expect does not exist
-if (typeof expect !== 'undefined' && typeof expect.extend === 'function') {
-    expect.extend({...baseMatchers, ...aliasMatchers});
+export default {
+    ...baseMatchers,
+    ...aliasMatchers,
 }
